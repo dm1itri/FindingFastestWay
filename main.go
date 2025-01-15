@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"slices"
@@ -20,44 +21,40 @@ type Point struct {
 	y int
 }
 
-func CorrectPoint(p Point, matrix [][]uint8) bool {
+func CorrectPoint(p Point, matrix [][]int) bool {
 	return 0 <= p.x && p.x < len(matrix[0]) && 0 <= p.y && p.y < len(matrix) && matrix[p.y][p.x] != 0
 }
 
-func CorrectPointInt(p Point, matrix [][]int) bool {
-	return 0 <= p.x && p.x < len(matrix[0]) && 0 <= p.y && p.y < len(matrix) && matrix[p.y][p.x] != 0
-}
-
-func ReadInput() ([][]uint8, Point, Point, error) {
+func ReadInput(input io.Reader) ([][]int, Point, Point, error) {
 	var length, width int
-	var start, end Point
-	reader := bufio.NewReader(os.Stdin)
+	var start, finish Point
+	reader := bufio.NewReader(input)
 
 	_, err := fmt.Fscan(reader, &length, &width)
 	if err != nil || length == 0 || width == 0 {
-		return nil, start, end, errors.New("incorrect dimensions of the maze")
+		return nil, start, finish, errors.New("incorrect dimensions of the maze")
 	}
 
-	matrix := make([][]uint8, length)
+	matrix := make([][]int, length)
 	for i := range matrix {
-		matrix[i] = make([]uint8, width)
+		matrix[i] = make([]int, width)
 		for j := range matrix[i] {
 			_, err = fmt.Fscan(reader, &matrix[i][j])
-			if err != nil || 9 < matrix[i][j] {
-				return nil, start, end, errors.New("incorrect maze structure")
+			if err != nil || matrix[i][j] < 0 || 9 < matrix[i][j] {
+				return nil, start, finish, errors.New("incorrect maze structure")
 			}
 		}
 	}
 
-	_, err = fmt.Fscan(reader, &start.y, &start.x, &end.y, &end.x)
-	if err != nil || !CorrectPoint(start, matrix) || !CorrectPoint(end, matrix) || start == end {
-		return nil, start, end, errors.New("incorrect data about the beginning or end of the way")
+	_, err = fmt.Fscan(reader, &start.y, &start.x, &finish.y, &finish.x)
+	if err != nil || !CorrectPoint(start, matrix) || !CorrectPoint(finish, matrix) || start == finish {
+		return nil, start, finish, errors.New("incorrect data about the beginning or end of the way")
 	}
 
-	return matrix, start, end, nil
+	return matrix, start, finish, nil
 }
 
-func PavingWayToFinish(distances [][]int, visited [][]bool, matrix [][]uint8, currPoint, finish Point) error {
+func PavingWayToFinish(distances [][]int, visited [][]bool, matrix [][]int, currPoint, finish Point) error {
 	directions := [4][2]int{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}
 	for {
 		var points []PointCost
@@ -95,7 +92,7 @@ func GetWay(distances [][]int, start, finish Point) []Point {
 			if point == start {
 				return append(ways, point)
 			}
-			if CorrectPointInt(point, distances) && distances[y][x] < minCost {
+			if CorrectPoint(point, distances) && distances[y][x] < minCost {
 				minCost = distances[y][x]
 				way = point
 			}
@@ -105,7 +102,7 @@ func GetWay(distances [][]int, start, finish Point) []Point {
 	}
 }
 
-func findingFastestWay(matrix [][]uint8, start, finish Point) error {
+func findingFastestWay(matrix [][]int, start, finish Point) error {
 	distances := make([][]int, len(matrix))
 	visited := make([][]bool, len(matrix))
 	for i := range distances {
@@ -129,13 +126,13 @@ func findingFastestWay(matrix [][]uint8, start, finish Point) error {
 }
 
 func main() {
-	matrix, start, end, err := ReadInput()
+	matrix, start, finish, err := ReadInput(os.Stdin)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	err = findingFastestWay(matrix, start, end)
+	err = findingFastestWay(matrix, start, finish)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

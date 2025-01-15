@@ -156,6 +156,14 @@ func TestFindingFastestWay(t *testing.T) {
 			wantError: "",
 		},
 		{
+			name:      "Ways with walls",
+			matrix:    [][]int{{1, 1, 9, 0, 1}, {1, 0, 1, 1, 1}, {1, 6, 1, 0, 1}, {1, 0, 1, 9, 1}, {1, 1, 1, 0, 9}},
+			start:     Point{0, 0},
+			finish:    Point{4, 4},
+			wantWay:   []Point{{4, 4}, {4, 3}, {4, 2}, {4, 1}, {3, 1}, {2, 1}, {2, 2}, {2, 3}, {2, 4}, {1, 4}, {0, 4}, {0, 3}, {0, 2}, {0, 1}, {0, 0}},
+			wantError: "",
+		},
+		{
 			name:      "Way not found",
 			matrix:    [][]int{{1, 1, 1}, {1, 0, 1}, {0, 9, 0}},
 			start:     Point{0, 0},

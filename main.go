@@ -2,19 +2,13 @@ package main
 
 import (
 	"bufio"
+	"container/heap"
 	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
-	"slices"
 )
-
-type PointCost struct {
-	x    int
-	y    int
-	cost int
-}
 
 type Point struct {
 	x int
@@ -54,30 +48,33 @@ func ReadInput(input io.Reader) ([][]int, Point, Point, error) {
 	return matrix, start, finish, nil
 }
 
-func PavingWayToFinish(distances [][]int, visited [][]bool, matrix [][]int, currPoint, finish Point) error {
+func PavingWayToFinish(distances [][]int, visited [][]bool, matrix [][]int, start, finish Point) error {
+	pq := &PriorityQueue{}
+	heap.Push(pq, &PointCost{point: Point{start.x, start.y}, cost: 0})
 	directions := [4][2]int{{0, 1}, {1, 0}, {0, -1}, {-1, 0}}
-	for {
-		var points []PointCost
-		for i := 0; i < 4; i++ {
-			point := Point{currPoint.x + directions[i][0], currPoint.y + directions[i][1]}
-			if CorrectPoint(point, matrix) && visited[point.y][point.x] == false {
-				points = append(points, PointCost{point.x, point.y, int(matrix[point.y][point.x])})
+	for pq.Len() > 0 {
+		currPointCost := heap.Pop(pq).(*PointCost)
+		if visited[currPointCost.point.y][currPointCost.point.x] {
+			continue
+		}
+		visited[currPointCost.point.y][currPointCost.point.x] = true
+
+		for _, direction := range directions {
+			x := currPointCost.point.x + direction[0]
+			y := currPointCost.point.y + direction[1]
+			if CorrectPoint(Point{x, y}, matrix) {
+				newCost := currPointCost.cost + matrix[y][x]
+				if newCost < distances[y][x] {
+					distances[y][x] = newCost
+					heap.Push(pq, &PointCost{point: Point{x, y}, cost: newCost})
+				}
 			}
 		}
-		if len(points) == 0 {
-			break
-		}
-		slices.SortFunc(points, func(i, j PointCost) int { return i.cost - j.cost })
-		for _, point := range points {
-			distances[point.y][point.x] = min(distances[point.y][point.x], distances[currPoint.y][currPoint.x]+int(matrix[point.y][point.x]))
-			if point.x == finish.x && point.y == finish.y {
-				return nil
-			}
-		}
-		visited[currPoint.y][currPoint.x] = true
-		currPoint = Point{points[0].x, points[0].y}
 	}
-	return errors.New("the way was not found")
+	if distances[finish.y][finish.x] == math.MaxInt {
+		return errors.New("the way was not found")
+	}
+	return nil
 }
 
 func GetWay(distances [][]int, start, finish Point) []Point {
@@ -102,7 +99,7 @@ func GetWay(distances [][]int, start, finish Point) []Point {
 	}
 }
 
-func findingFastestWay(matrix [][]int, start, finish Point) error {
+func FindingFastestWay(matrix [][]int, start, finish Point) ([]Point, error) {
 	distances := make([][]int, len(matrix))
 	visited := make([][]bool, len(matrix))
 	for i := range distances {
@@ -112,17 +109,12 @@ func findingFastestWay(matrix [][]int, start, finish Point) error {
 			distances[i][j] = math.MaxInt
 		}
 	}
-	distances[start.y][start.x] = int(matrix[start.y][start.x])
+	distances[start.y][start.x] = matrix[start.y][start.x]
 	err := PavingWayToFinish(distances, visited, matrix, start, finish)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	ways := GetWay(distances, start, finish)
-	for i := len(ways) - 1; i >= 0; i-- {
-		fmt.Println(ways[i].y, ways[i].x)
-	}
-	fmt.Println(".")
-	return nil
+	return GetWay(distances, start, finish), nil
 }
 
 func main() {
@@ -132,9 +124,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = findingFastestWay(matrix, start, finish)
+	way, err := FindingFastestWay(matrix, start, finish)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	for i := len(way) - 1; i >= 0; i-- {
+		fmt.Println(way[i].y, way[i].x)
+	}
+	fmt.Println(".")
 }
